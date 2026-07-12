@@ -24,6 +24,14 @@ import com.example.dessertrelease.R
 import com.example.dessertrelease.data.local.UserPreferencesRepository
 import kotlinx.coroutines.flow.MutableStateFlow
 import kotlinx.coroutines.flow.StateFlow
+import androidx.lifecycle.ViewModelProvider.AndroidViewModelFactory.Companion.APPLICATION_KEY
+import androidx.lifecycle.viewModelScope
+import kotlinx.coroutines.flow.SharingStarted
+import kotlinx.coroutines.flow.WhileSubscribed
+import kotlinx.coroutines.flow.map
+import kotlinx.coroutines.flow.stateIn
+import kotlinx.coroutines.launch
+
 
 /*
  * View model of Dessert Release components
@@ -35,13 +43,24 @@ class DessertReleaseViewModel(
     private val _uiState = MutableStateFlow(DessertReleaseUiState())
 
     // UI states access for various [DessertReleaseUiState]
-    val uiState: StateFlow<DessertReleaseUiState> = _uiState
+    val uiState: StateFlow<DessertReleaseUiState> =
+        userPreferencesRepository.isLinearLayout.map {
+            isLinearLayout -> DessertReleaseUiState(isLinearLayout)
+        }
+            .stateIn(
+                scope = viewModelScope,
+                started = SharingStarted.WhileSubscribed(5_000),
+                initialValue = DessertReleaseUiState()
+            )
 
     /*
      * [selectLayout] change the layout and icons accordingly and
      * save the selection in DataStore through [userPreferencesRepository]
      */
     fun selectLayout(isLinearLayout: Boolean) {
+        viewModelScope.launch{
+            userPreferencesRepository.saveLayoutPreference(isLinearLayout)
+        }
         _uiState.value = DessertReleaseUiState(isLinearLayout)
     }
 
@@ -50,7 +69,7 @@ class DessertReleaseViewModel(
             initializer {
 
                 val application = (this[APPLICATION_KEY] as DessertReleaseApplication)
-                DessertReleaseViewModel(application.userPreferenceRepository)
+                DessertReleaseViewModel(application.userPreferencesRepository)
             }
         }
     }
